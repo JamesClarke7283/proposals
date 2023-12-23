@@ -54,6 +54,29 @@ local function show_add_proposal_formspec(player_name)
     minetest.show_formspec(player_name, "vote_changes:add_proposal", formspec)
 end
 
+local function show_add_comment_formspec(player_name, proposal_index)
+    local formspec = "size[8,4]" ..
+                     "textarea[0.5,0.5;7.5,2;comment;Leave your comment (max 380 characters);]" ..
+                     "button[3,3.5;2,1;submit_comment;Submit]" ..
+                     "field[0,0;0,0;proposal_index;;" .. proposal_index .. "]"  -- Hidden field to pass proposal index
+
+    minetest.show_formspec(player_name, "vote_changes:add_comment", formspec)
+end
+
+local function show_edit_comment_formspec(player_name, proposal_index, commenter)
+    local proposal = proposals[proposal_index]
+    local comment = proposal.comments[commenter] or ""
+    local formspec = "size[8,4]" ..
+                     "textarea[0.5,0.5;7.5,2;edit_comment;Edit your comment (max 380 characters);" .. minetest.formspec_escape(comment) .. "]" ..
+                     "button[3,3.5;2,1;submit_edit_comment;Submit]" ..
+                     "field[0,0;0,0;proposal_index;;" .. proposal_index .. "]" ..
+                     "field[0,0;0,0;commenter;;" .. commenter .. "]"  -- Hidden fields
+
+    minetest.show_formspec(player_name, "vote_changes:edit_comment", formspec)
+end
+
+
+
 -- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
 local function show_proposal_details(player_name, proposal_index)
     local proposal = proposals[proposal_index]
@@ -62,7 +85,7 @@ local function show_proposal_details(player_name, proposal_index)
     local player_has_privilege = minetest.check_player_privs(player_name, {proposals_admin=true})
     local is_author = proposal.author == player_name
 
-    local formspec = "size[8,8]" ..
+    local formspec = "size[8,12]" ..
                      "label[0.5,0.5;" .. minetest.formspec_escape(proposal.title) .. " by " .. proposal.author .. "]" ..
                      "textarea[0.5,1.5;7.5,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
                      "label[0.5,4;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]" ..
@@ -70,15 +93,31 @@ local function show_proposal_details(player_name, proposal_index)
                      "button[3,5;2,1;vote_no;Vote No]" ..
                      "button[5.5,5;2,1;vote_abstain;Abstain]"
 
-    if is_author or player_has_privilege then
-        formspec = formspec .. "button[0.5,6;3,1;edit_proposal;Edit Proposal]" ..
-                               "button[4,6;3,1;delete_proposal;Delete Proposal]"
+    local y = 6
+    for commenter, comment in pairs(proposal.comments) do
+        formspec = formspec .. "label[0.5," .. y .. ";" .. commenter .. ": " .. minetest.formspec_escape(comment) .. "]"
+        if commenter == player_name or player_has_privilege then
+            formspec = formspec .. "button[7," .. y .. ";1,0.5;edit_comment_" .. commenter .. ";Edit]" ..
+                                   "button[7.5," .. y .. ";1,0.5;delete_comment_" .. commenter .. ";Delete]"
+        end
+        y = y + 0.5
     end
 
-    formspec = formspec .. "button[5.5,7;2,1;back;Back]"
+    if is_author or player_has_privilege then
+        formspec = formspec .. "button[0.5,8;3,1;edit_proposal;Edit Proposal]" ..
+                               "button[4,8;3,1;delete_proposal;Delete Proposal]"
+    end
+
+    if player_name ~= proposal.author then
+        formspec = formspec .. "button[0.5,9;3,1;add_comment;Add Comment]"
+    end
+
+    formspec = formspec .. "button[5.5,9;2,1;back;Back]"
 
     minetest.show_formspec(player_name, "vote_changes:proposal_" .. proposal_index, formspec)
 end
+
+
 
 
 -- Function to show the edit proposal formspec
@@ -133,17 +172,14 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
                 show_edit_proposal_formspec(player_name, proposal_index)
             elseif fields.back then
                 show_formspec(player_name)
-            elseif fields.delete_proposal and (is_author or player_has_privilege) then
+            elseif fields.delete_proposal and is_author_or_admin then
                 table.remove(proposals, proposal_index)
                 save_proposals()
                 show_formspec(player_name)
             elseif fields.vote_yes or fields.vote_no or fields.vote_abstain then
-                -- Reset previous vote if any
                 if proposal.votes_cast[player_name] then
                     proposal.votes[proposal.votes_cast[player_name]] = proposal.votes[proposal.votes_cast[player_name]] - 1
                 end
-
-                -- Cast new vote
                 if fields.vote_yes then
                     proposal.votes.yes = proposal.votes.yes + 1
                     proposal.votes_cast[player_name] = 'yes'
@@ -154,9 +190,28 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
                     proposal.votes.abstain = proposal.votes.abstain + 1
                     proposal.votes_cast[player_name] = 'abstain'
                 end
-
                 save_proposals()
                 show_proposal_details(player_name, proposal_index)
+            elseif fields.add_comment and player_name ~= proposal.author and not proposal.comments[player_name] then
+                show_add_comment_formspec(player_name, proposal_index)
+            else
+                for field_name, _ in pairs(fields) do
+                    if field_name:find("edit_comment_") then
+                        local commenter = field_name:match("edit_comment_(.+)")
+                        if commenter and (commenter == player_name or player_has_privilege) and proposal.comments[commenter] then
+                            show_edit_comment_formspec(player_name, proposal_index, commenter)
+                            break
+                        end
+                    elseif field_name:find("delete_comment_") then
+                        local commenter = field_name:match("delete_comment_(.+)")
+                        if commenter and (commenter == player_name or player_has_privilege) and proposal.comments[commenter] then
+                            proposal.comments[commenter] = nil
+                            save_proposals()
+                            show_proposal_details(player_name, proposal_index)
+                            break
+                        end
+                    end
+                end
             end
         end
     elseif formname == "vote_changes:add_proposal" and fields.submit_proposal then
@@ -166,7 +221,8 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
                 description = fields.proposal_description,
                 author = player_name,
                 votes = { yes = 0, no = 0, abstain = 0 },
-                votes_cast = {}
+                votes_cast = {},
+                comments = {}
             })
             save_proposals()
             show_formspec(player_name)
@@ -174,16 +230,39 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
     elseif formname == "vote_changes:edit_proposal" then
         local proposal_index = tonumber(fields.proposal_index)
         local proposal = proposals[proposal_index]
-
         if proposal and (proposal.author == player_name or minetest.check_player_privs(player_name, {proposals_admin=true})) then
             if fields.edit_proposal_title ~= "" and fields.edit_proposal_description ~= "" then
                 proposal.title = fields.edit_proposal_title
                 proposal.description = fields.edit_proposal_description
+                proposal.comments = proposal.comments or {}
+                save_proposals()
+                show_proposal_details(player_name, proposal_index)
+            end
+        end
+    elseif formname == "vote_changes:add_comment" then
+        local proposal_index = tonumber(fields.proposal_index)
+        local proposal = proposals[proposal_index]
+        if proposal and player_name ~= proposal.author and not proposal.comments[player_name] then
+            if fields.comment and fields.comment ~= "" and string.len(fields.comment) <= 380 then
+                proposal.comments[player_name] = fields.comment
+                save_proposals()
+                show_proposal_details(player_name, proposal_index)
+            end
+        end
+    elseif formname == "vote_changes:edit_comment" then
+        local proposal_index = tonumber(fields.proposal_index)
+        local commenter = fields.commenter
+        local proposal = proposals[proposal_index]
+        if proposal and commenter and proposal.comments[commenter] and (commenter == player_name or player_has_privilege) then
+            if fields.edit_comment and fields.edit_comment ~= "" and string.len(fields.edit_comment) <= 380 then
+                proposal.comments[commenter] = fields.edit_comment
                 save_proposals()
                 show_proposal_details(player_name, proposal_index)
             end
         end
     end
 end)
+
+
 
 

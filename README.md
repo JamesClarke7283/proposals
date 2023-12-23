@@ -10,6 +10,7 @@
 - **Create Proposals**: Players can create proposals, each consisting of a title and a detailed description.
 - **Vote on Proposals**: Every player can cast their vote on any proposal, choosing between 'Yes', 'No', or 'Abstain'.
 - **View Proposals**: Players can view all active proposals along with their details and current vote counts.
+- **Edit Proposals**: Admin Players can edit all active proposals along with their details, Owners can also do this with the proposals they made.
 - **Delete Proposals**: Proposal authors can delete their proposals. Additionally, players with administrative privileges can delete any proposal.
 - **Automatic Updates**: The list of proposals and vote counts are updated in real-time, reflecting the latest changes made by players.
 - **Admin Privilege**: A specific privilege (`proposals_admin`) is available for server administrators or designated players, allowing them to manage all proposals effectively.

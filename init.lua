@@ -54,7 +54,7 @@ local function show_add_proposal_formspec(player_name)
     minetest.show_formspec(player_name, "vote_changes:add_proposal", formspec)
 end
 
--- Function to show proposal details and voting options, with delete button for the author or admin
+-- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
 local function show_proposal_details(player_name, proposal_index)
     local proposal = proposals[proposal_index]
     if not proposal then return end
@@ -71,13 +71,30 @@ local function show_proposal_details(player_name, proposal_index)
                      "button[5.5,5;2,1;vote_abstain;Abstain]"
 
     if is_author or player_has_privilege then
-        formspec = formspec .. "button[0.5,6;3,1;delete_proposal;Delete Proposal]"
+        formspec = formspec .. "button[0.5,6;3,1;edit_proposal;Edit Proposal]" ..
+                               "button[4,6;3,1;delete_proposal;Delete Proposal]"
     end
 
-    formspec = formspec .. "button[5.5,6;2,1;back;Back]"
+    formspec = formspec .. "button[5.5,7;2,1;back;Back]"
 
     minetest.show_formspec(player_name, "vote_changes:proposal_" .. proposal_index, formspec)
 end
+
+
+-- Function to show the edit proposal formspec
+local function show_edit_proposal_formspec(player_name, proposal_index)
+    local proposal = proposals[proposal_index]
+    if not proposal then return end
+
+    local formspec = "size[8,4]" ..
+                     "field[0.5,1;7,1;edit_proposal_title;Title;" .. minetest.formspec_escape(proposal.title) .. "]" ..
+                     "textarea[0.5,2;7,2;edit_proposal_description;Description;" .. minetest.formspec_escape(proposal.description) .. "]" ..
+                     "button[3,3.5;2,1;submit_edit;Submit]" ..
+                     "field[0,0;0,0;proposal_index;;" .. proposal_index .. "]"  -- Hidden field to pass proposal index
+
+    minetest.show_formspec(player_name, "vote_changes:edit_proposal", formspec)
+end
+
 
 
 
@@ -91,7 +108,6 @@ minetest.register_chatcommand("proposals", {
     end,
 })
 
--- Handle formspec submissions
 -- Handle formspec submissions
 minetest.register_on_player_receive_fields(function(player, formname, fields)
     local player_name = player:get_player_name()
@@ -111,8 +127,11 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         if proposal then
             local player_has_privilege = minetest.check_player_privs(player_name, {proposals_admin=true})
             local is_author = proposal.author == player_name
-            
-            if fields.back then
+            local is_author_or_admin = is_author or player_has_privilege
+
+            if fields.edit_proposal and is_author_or_admin then
+                show_edit_proposal_formspec(player_name, proposal_index)
+            elseif fields.back then
                 show_formspec(player_name)
             elseif fields.delete_proposal and (is_author or player_has_privilege) then
                 table.remove(proposals, proposal_index)
@@ -152,6 +171,19 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
             save_proposals()
             show_formspec(player_name)
         end
+    elseif formname == "vote_changes:edit_proposal" then
+        local proposal_index = tonumber(fields.proposal_index)
+        local proposal = proposals[proposal_index]
+
+        if proposal and (proposal.author == player_name or minetest.check_player_privs(player_name, {proposals_admin=true})) then
+            if fields.edit_proposal_title ~= "" and fields.edit_proposal_description ~= "" then
+                proposal.title = fields.edit_proposal_title
+                proposal.description = fields.edit_proposal_description
+                save_proposals()
+                show_proposal_details(player_name, proposal_index)
+            end
+        end
     end
 end)
+
 

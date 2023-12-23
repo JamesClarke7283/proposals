@@ -30,17 +30,20 @@ local function show_formspec(player_name)
                      "label[0.5,0.5;Vote on Changes]" ..
                      "textlist[0.5,1;9,4;proposals;"
 
-    for i, proposal in ipairs(proposals) do
-        formspec = formspec .. minetest.formspec_escape(proposal.title .. " by " .. proposal.author) .. ","
+    if #proposals > 0 then
+        for _, proposal in ipairs(proposals) do
+            formspec = formspec .. minetest.formspec_escape(proposal.title .. " by " .. proposal.author) .. ","
+        end
+        formspec = formspec:sub(1, -2)
     end
 
-    formspec = formspec:sub(1, -2)  -- Remove last comma
     formspec = formspec .. "]" ..
                "button[0.5,6;3,1;add_proposal;Add Proposal]" ..
                "button_exit[6.5,6;3,1;exit;Exit]"
 
     minetest.show_formspec(player_name, "vote_changes:main", formspec)
 end
+
 
 -- Function to show the add proposal formspec
 local function show_add_proposal_formspec(player_name)
@@ -51,7 +54,7 @@ local function show_add_proposal_formspec(player_name)
     minetest.show_formspec(player_name, "vote_changes:add_proposal", formspec)
 end
 
--- Function to show proposal details and voting options, with delete button for the author
+-- Function to show proposal details and voting options, with delete button for the author or admin
 local function show_proposal_details(player_name, proposal_index)
     local proposal = proposals[proposal_index]
     if not proposal then return end
@@ -59,7 +62,7 @@ local function show_proposal_details(player_name, proposal_index)
     local player_has_privilege = minetest.check_player_privs(player_name, {proposals_admin=true})
     local is_author = proposal.author == player_name
 
-    local formspec = "size[8,7]" ..
+    local formspec = "size[8,8]" ..
                      "label[0.5,0.5;" .. minetest.formspec_escape(proposal.title) .. " by " .. proposal.author .. "]" ..
                      "textarea[0.5,1.5;7.5,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
                      "label[0.5,4;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]"
@@ -71,11 +74,14 @@ local function show_proposal_details(player_name, proposal_index)
     end
 
     if is_author or player_has_privilege then
-        formspec = formspec .. "button[2.5,6;3,1;delete_proposal;Delete Proposal]"
+        formspec = formspec .. "button[0.5,6;3,1;delete_proposal;Delete Proposal]"
     end
+
+    formspec = formspec .. "button[5.5,6;2,1;back;Back]"
 
     minetest.show_formspec(player_name, "vote_changes:proposal_" .. proposal_index, formspec)
 end
+
 
 
 -- Register the /vote_changes command
@@ -106,8 +112,10 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         if proposal then
             local player_has_privilege = minetest.check_player_privs(player_name, {proposals_admin=true})
             local is_author = proposal.author == player_name
-    
-            if fields.delete_proposal and (is_author or player_has_privilege) then
+            
+            if fields.back then
+                show_formspec(player_name)
+            elseif fields.delete_proposal and (is_author or player_has_privilege) then
                 table.remove(proposals, proposal_index)
                 save_proposals()
                 show_formspec(player_name)

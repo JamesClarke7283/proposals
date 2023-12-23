@@ -80,16 +80,18 @@ end
 -- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
 -- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
 -- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
+-- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
 local function show_proposal_details(player_name, proposal_index)
     local proposal = proposals[proposal_index]
     if not proposal then return end
 
     proposal.comments = proposal.comments or {}
-
+    
     local player_has_privilege = minetest.check_player_privs(player_name, {proposals_admin=true})
     local is_author = proposal.author == player_name
+    local has_commented = proposal.comments[player_name] ~= nil
+    local can_edit = is_author or player_has_privilege
 
-    -- Starting formspec layout
     local formspec = "size[12,12]" ..
                      "label[0.5,0.5;" .. minetest.formspec_escape(proposal.title) .. " by " .. proposal.author .. "]" ..
                      "textarea[0.5,1.5;11,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
@@ -98,41 +100,44 @@ local function show_proposal_details(player_name, proposal_index)
                      "button[3,5;2,1;vote_no;Vote No]" ..
                      "button[5.5,5;2,1;vote_abstain;Abstain]"
 
-    -- Comments title
+    -- Comments section
     formspec = formspec .. "label[0.5,6;Comments:]"
 
-    -- Comment box and scrollbar
     local comments_str = ""
     for commenter, comment in pairs(proposal.comments) do
-        comments_str = comments_str .. commenter .. ": " .. minetest.formspec_escape(comment) .. "\n\n"
+        comments_str = comments_str .. commenter .. ":\n" .. comment .. "\n\n"
     end
+    -- Trim the final newlines
+    comments_str = comments_str:gsub("\n\n$", "")
 
-    formspec = formspec .. "box[0.5,6.5;11,3;#FFF]" ..
-                           "scroll_container[0.5,6.5;10.8,3;scrollbar;vertical]" ..
-                           "textarea[0.25,0.25;10.5,4;;;" .. comments_str .. "]" ..
+    -- Comments textarea with a scrollbar
+    formspec = formspec .. "scroll_container[0.5,6.5;11,3;scrollbar;vertical]" ..
+                           "textarea[0.25,0.25;10.5,4;;;" .. comments_str .. ";true]" ..
                            "scroll_container_end[]"
 
-    -- Edit and Delete buttons for comments at the bottom (outside of the scroll container)
-    if player_has_privilege then
-        formspec = formspec .. "button[0.5,9.75;3,1;edit_comment;Edit Comment]" ..
-                               "button[4,9.75;3,1;delete_comment;Delete Comment]"
+    -- Add Comment button only if the player has not commented yet
+    if not has_commented and player_name ~= proposal.author then
+        formspec = formspec .. "button[0.5,10;3,1;add_comment;Add Comment]"
     end
 
-    -- Additional buttons if the player has privileges or is the author
-    if is_author or player_has_privilege then
+    -- Edit and Delete Comment buttons only if the player has commented
+    if has_commented and not can_edit then
+        formspec = formspec .. "button[9,10;3,1;edit_comment;Edit Comment]" ..
+                               "button[9,11;3,1;delete_comment;Delete Comment]"
+    end
+
+    -- Edit Proposal and Delete Proposal buttons if the player has privileges or is the author
+    if can_edit then
         formspec = formspec .. "button[0.5,11;3,1;edit_proposal;Edit Proposal]" ..
                                "button[4,11;3,1;delete_proposal;Delete Proposal]"
     end
 
-    -- Add comment button only for non-authors
-    if player_name ~= proposal.author then
-        formspec = formspec .. "button[0.5,10.5;3,1;add_comment;Add Comment]"
-    end
-
+    -- Back button
     formspec = formspec .. "button[9,11;3,1;back;Back]"
 
     minetest.show_formspec(player_name, "vote_changes:proposal_" .. proposal_index, formspec)
 end
+
 
 
 

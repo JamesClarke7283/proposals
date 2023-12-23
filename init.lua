@@ -65,13 +65,10 @@ local function show_proposal_details(player_name, proposal_index)
     local formspec = "size[8,8]" ..
                      "label[0.5,0.5;" .. minetest.formspec_escape(proposal.title) .. " by " .. proposal.author .. "]" ..
                      "textarea[0.5,1.5;7.5,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
-                     "label[0.5,4;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]"
-
-    if not has_voted(player_name, proposal) then
-        formspec = formspec .. "button[0.5,5;2,1;vote_yes;Vote Yes]" ..
-                               "button[3,5;2,1;vote_no;Vote No]" ..
-                               "button[5.5,5;2,1;vote_abstain;Abstain]"
-    end
+                     "label[0.5,4;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]" ..
+                     "button[0.5,5;2,1;vote_yes;Vote Yes]" ..
+                     "button[3,5;2,1;vote_no;Vote No]" ..
+                     "button[5.5,5;2,1;vote_abstain;Abstain]"
 
     if is_author or player_has_privilege then
         formspec = formspec .. "button[0.5,6;3,1;delete_proposal;Delete Proposal]"
@@ -84,6 +81,7 @@ end
 
 
 
+
 -- Register the /vote_changes command
 minetest.register_chatcommand("proposals", {
     description = "Open the voting interface",
@@ -93,6 +91,7 @@ minetest.register_chatcommand("proposals", {
     end,
 })
 
+-- Handle formspec submissions
 -- Handle formspec submissions
 minetest.register_on_player_receive_fields(function(player, formname, fields)
     local player_name = player:get_player_name()
@@ -119,18 +118,26 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
                 table.remove(proposals, proposal_index)
                 save_proposals()
                 show_formspec(player_name)
-            elseif not has_voted(player_name, proposal) then
+            elseif fields.vote_yes or fields.vote_no or fields.vote_abstain then
+                -- Reset previous vote if any
+                if proposal.votes_cast[player_name] then
+                    proposal.votes[proposal.votes_cast[player_name]] = proposal.votes[proposal.votes_cast[player_name]] - 1
+                end
+
+                -- Cast new vote
                 if fields.vote_yes then
                     proposal.votes.yes = proposal.votes.yes + 1
+                    proposal.votes_cast[player_name] = 'yes'
                 elseif fields.vote_no then
                     proposal.votes.no = proposal.votes.no + 1
+                    proposal.votes_cast[player_name] = 'no'
                 elseif fields.vote_abstain then
                     proposal.votes.abstain = proposal.votes.abstain + 1
+                    proposal.votes_cast[player_name] = 'abstain'
                 end
-                proposal.votes_cast = proposal.votes_cast or {}
-                proposal.votes_cast[player_name] = true
+
                 save_proposals()
-                show_formspec(player_name)
+                show_proposal_details(player_name, proposal_index)
             end
         end
     elseif formname == "vote_changes:add_proposal" and fields.submit_proposal then
@@ -147,3 +154,4 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
         end
     end
 end)
+

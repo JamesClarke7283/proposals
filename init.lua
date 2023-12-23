@@ -79,6 +79,7 @@ end
 
 -- Function to show proposal details and voting options
 -- Function to show proposal details and voting options
+-- Function to show proposal details and voting options
 local function show_proposal_details(player_name, proposal_index)
     local proposal = proposals[proposal_index]
     if not proposal then return end
@@ -90,42 +91,39 @@ local function show_proposal_details(player_name, proposal_index)
 
     local formspec = "size[12,12]" ..
                      "label[0.5,0.5;" .. minetest.formspec_escape(proposal.title) .. " by " .. proposal.author .. "]" ..
-                     "textarea[0.5,1.5;11,2.5;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
-                     "label[0.5,4.25;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]" ..
-                     "button[0.5,5.25;2,1;vote_yes;Vote Yes]" ..
-                     "button[3,5.25;2,1;vote_no;Vote No]" ..
-                     "button[5.5,5.25;2,1;vote_abstain;Abstain]" ..
-                     "label[0.5,6.5;Comments:]"
+                     "textarea[0.5,1.5;11,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
+                     "label[0.5,4;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]" ..
+                     "button[0.5,5;2,1;vote_yes;Vote Yes]" ..
+                     "button[3,5;2,1;vote_no;Vote No]" ..
+                     "button[5.5,5;2,1;vote_abstain;Abstain]"
 
-    -- Construct comments string with proper escaping and formatting
+    -- Comments section
+    formspec = formspec .. "label[0.5,6;Comments:]"
+
     local comments_str = ""
     for commenter, comment in pairs(proposal.comments) do
-        -- Escape each comment and add it to the string
         comments_str = comments_str .. minetest.formspec_escape(commenter .. ":") .. "\n" .. minetest.formspec_escape(comment) .. "\n\n"
     end
-    -- Remove the last newline characters
     comments_str = comments_str:gsub("\n\n$", "")
 
-    -- Scrollable area for comments
-    formspec = formspec .. "scroll_container[0.5,7;11,3;scrollbar;vertical]" ..
-                           "textarea[0.25,0.25;10.5,10;;;" .. comments_str .. "]" ..
-                           "scroll_container_end[]"
+    -- Comments textarea
+    formspec = formspec .. "textarea[0.5,6.5;11,3;comments;;" .. comments_str .. "]"
 
-    -- Edit and Delete Comment buttons only if the player has commented
+    -- Edit and Delete buttons for the player's own comment
     if has_commented then
-        formspec = formspec .. "button[9,10;3,1;edit_comment;Edit Comment]" ..
-                               "button[9,11;3,1;delete_comment;Delete Comment]"
+        formspec = formspec .. "button[9,9.5;3,1;edit_my_comment;Edit Comment]" ..
+                               "button[9,10.5;3,1;delete_my_comment;Delete Comment]"
     end
 
     -- Add Comment button only if the player has not commented and is not the author
     if not has_commented and not is_author then
-        formspec = formspec .. "button[0.5,10;3,1;add_comment;Add Comment]"
+        formspec = formspec .. "button[0.5,9.5;3,1;add_comment;Add Comment]"
     end
 
     -- Edit and Delete Proposal buttons if the player has privileges or is the author
     if player_has_privilege or is_author then
-        formspec = formspec .. "button[0.5,11;3,1;edit_proposal;Edit Proposal]" ..
-                               "button[4,11;3,1;delete_proposal;Delete Proposal]"
+        formspec = formspec .. "button[0.5,10.5;3,1;edit_proposal;Edit Proposal]" ..
+                               "button[4,10.5;3,1;delete_proposal;Delete Proposal]"
     end
 
     formspec = formspec .. "button[9,11;3,1;back;Back]"

@@ -78,41 +78,41 @@ end
 
 
 -- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
+-- Function to show proposal details and voting options, with delete and edit buttons for the author or admin
 local function show_proposal_details(player_name, proposal_index)
     local proposal = proposals[proposal_index]
     if not proposal then return end
 
-    -- Ensure comments is always a table
     proposal.comments = proposal.comments or {}
-
+    
     local player_has_privilege = minetest.check_player_privs(player_name, {proposals_admin=true})
     local is_author = proposal.author == player_name
 
-    local formspec = "size[12,12]" ..  -- Adjusted width to 12
+    local formspec = "size[12,12]" ..
                      "label[0.5,0.5;" .. minetest.formspec_escape(proposal.title) .. " by " .. proposal.author .. "]" ..
-                     "textarea[0.5,1.5;11,2.5;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
-                     "label[0.5,4.5;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]" ..
-                     "button[0.5,5.5;2,1;vote_yes;Vote Yes]" ..
-                     "button[3,5.5;2,1;vote_no;Vote No]" ..
-                     "button[5.5,5.5;2,1;vote_abstain;Abstain]" ..
-                     "label[0.5,7;Comments:]" ..  -- Add a "Comments" title
+                     "textarea[0.5,1.5;11,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
+                     "label[0.5,4;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]" ..
+                     "button[0.5,5;2,1;vote_yes;Vote Yes]" ..
+                     "button[3,5;2,1;vote_no;Vote No]" ..
+                     "button[5.5,5;2,1;vote_abstain;Abstain]"
 
-    -- Comments section
-    local y = 7.5
+    -- Concatenate all comments into a single string for the textarea
+    local comments_str = ""
     for commenter, comment in pairs(proposal.comments) do
-        formspec = formspec .. "box[0.5," .. y .. ";11,0.8;#EEEEEE]" ..  -- Changed box color for contrast
-                               "label[0.7," .. y+0.1 .. ";" .. commenter .. ": " .. minetest.formspec_escape(comment) .. "]"
-        if commenter == player_name or player_has_privilege then
-            formspec = formspec .. "button[10.5," .. y .. ";1,0.8;edit_comment_" .. commenter .. ";Edit]" ..
-                                   "button[11.5," .. y .. ";1,0.8;delete_comment_" .. commenter .. ";Delete]"
-        end
-        y = y + 1  -- Increase y by 1 for each comment for better spacing
+        comments_str = comments_str .. commenter .. ":\n" .. comment .. "\n\n"
     end
+
+    -- Remove the last two newlines
+    comments_str = comments_str:gsub("\n\n$", "")
+
+    formspec = formspec .. "label[0.5,6.5;Comments:]" ..
+                           "box[0.5,7;11,3;#EEEEEE]" .. -- Box to contain the comments textarea
+                           "textarea[0.75,7.25;10.5,2.5;comments;;" .. minetest.formspec_escape(comments_str) .. ";true]" -- True for scrollbar
 
     -- Additional buttons if the player has privileges or is the author
     if is_author or player_has_privilege then
-        formspec = formspec .. "button[0.5,11;3,1;edit_proposal;Edit Proposal]" ..
-                               "button[4,11;3,1;delete_proposal;Delete Proposal]"
+        formspec = formspec .. "button[0.5,10;3,1;edit_proposal;Edit Proposal]" ..
+                               "button[4,10;3,1;delete_proposal;Delete Proposal]"
     end
 
     -- Add comment button only for non-authors
@@ -120,10 +120,14 @@ local function show_proposal_details(player_name, proposal_index)
         formspec = formspec .. "button[0.5,11;3,1;add_comment;Add Comment]"
     end
 
-    formspec = formspec .. "button[9,11;3,1;back;Back]"
+    -- Edit and Delete buttons for comments at the bottom
+    formspec = formspec .. "button[9,10;1.5,1;edit_comment;Edit Comment]" ..
+                           "button[10.5,10;1.5,1;delete_comment;Delete Comment]" ..
+                           "button[9,11;3,1;back;Back]"
 
     minetest.show_formspec(player_name, "vote_changes:proposal_" .. proposal_index, formspec)
 end
+
 
 -- Function to show the edit proposal formspec
 local function show_edit_proposal_formspec(player_name, proposal_index)

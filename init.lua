@@ -96,26 +96,32 @@ local function show_proposal_details(player_name, proposal_index)
                      "button[5.5,5;2,1;vote_abstain;Abstain]" ..
                      "label[0.5,6;Comments:]"
 
+    -- Construct comments string with proper escaping and formatting
     local comments_str = ""
     for commenter, comment in pairs(proposal.comments) do
-        comments_str = comments_str .. commenter .. ":\n" .. comment .. "\n\n"
+        -- Escape each comment and add it to the string
+        comments_str = comments_str .. minetest.formspec_escape(commenter .. ":\n" .. comment) .. "\n\n"
     end
+    -- Remove the last newline characters
     comments_str = comments_str:gsub("\n\n$", "")
 
-    -- Scrollable area for comments
+    -- Comments textarea with a scrollbar
     formspec = formspec .. "scroll_container[0.5,6.5;11,3;scrollbar;vertical]" ..
-                           "textarea[0.25,0.25;10.5,4;;;" .. minetest.formspec_escape(comments_str) .. ";true]" ..
+                           "textarea[0.25,0.25;10.5,4;;;" .. comments_str .. ";true]" ..
                            "scroll_container_end[]"
 
-    if not is_author then
-        if not has_commented then
-            formspec = formspec .. "button[0.5,10;3,1;add_comment;Add Comment]"
-        else
-            formspec = formspec .. "button[0.5,10;3,1;edit_my_comment;Edit My Comment]" ..
-                                   "button[4,10;3,1;delete_my_comment;Delete My Comment]"
-        end
+    -- Edit and Delete Comment buttons only if the player has commented
+    if has_commented then
+        formspec = formspec .. "button[0.5,10;3,1;edit_comment;Edit Comment]" ..
+                               "button[4,10;3,1;delete_comment;Delete Comment]"
     end
 
+    -- Add Comment button only if the player has not commented and is not the author
+    if not has_commented and not is_author then
+        formspec = formspec .. "button[0.5,10;3,1;add_comment;Add Comment]"
+    end
+
+    -- Edit and Delete Proposal buttons if the player has privileges or is the author
     if player_has_privilege or is_author then
         formspec = formspec .. "button[0.5,11;3,1;edit_proposal;Edit Proposal]" ..
                                "button[4,11;3,1;delete_proposal;Delete Proposal]"
@@ -125,6 +131,7 @@ local function show_proposal_details(player_name, proposal_index)
 
     minetest.show_formspec(player_name, "vote_changes:proposal_" .. proposal_index, formspec)
 end
+
 
 -- Function to show the edit proposal formspec
 local function show_edit_proposal_formspec(player_name, proposal_index)

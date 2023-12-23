@@ -82,42 +82,49 @@ local function show_proposal_details(player_name, proposal_index)
     local proposal = proposals[proposal_index]
     if not proposal then return end
 
+    -- Ensure comments is always a table
     proposal.comments = proposal.comments or {}
-    
+
     local player_has_privilege = minetest.check_player_privs(player_name, {proposals_admin=true})
     local is_author = proposal.author == player_name
 
-    local formspec = "size[8,12]" ..
+    local formspec = "size[12,12]" ..  -- Increased width to 12
                      "label[0.5,0.5;" .. minetest.formspec_escape(proposal.title) .. " by " .. proposal.author .. "]" ..
-                     "textarea[0.5,1.5;7.5,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
+                     "textarea[0.5,1.5;11.5,2;;" .. minetest.formspec_escape(proposal.description) .. ";]" ..
                      "label[0.5,4;Votes: Yes(" .. proposal.votes.yes .. ") No(" .. proposal.votes.no .. ") Abstain(" .. proposal.votes.abstain .. ")]" ..
                      "button[0.5,5;2,1;vote_yes;Vote Yes]" ..
                      "button[3,5;2,1;vote_no;Vote No]" ..
-                     "button[5.5,5;2,1;vote_abstain;Abstain]"
+                     "button[5.5,5;2,1;vote_abstain;Abstain]" ..
+                     "label[0.5,6;Comments:]";  -- Add a "Comments" title
 
-    local y = 6
+    -- Comments section
+    local y = 6.5
     for commenter, comment in pairs(proposal.comments) do
-        formspec = formspec .. "label[0.5," .. y .. ";" .. commenter .. ": " .. minetest.formspec_escape(comment) .. "]"
+        formspec = formspec .. "box[0.5," .. y-0.3 .. ";11,0.6;#252526]" ..  -- Added a box to distinguish comments
+                               "label[0.5," .. y .. ";" .. commenter .. ": " .. minetest.formspec_escape(comment) .. "]"
         if commenter == player_name or player_has_privilege then
-            formspec = formspec .. "button[7," .. y .. ";1,0.5;edit_comment_" .. commenter .. ";Edit]" ..
-                                   "button[7.5," .. y .. ";1,0.5;delete_comment_" .. commenter .. ";Delete]"
+            formspec = formspec .. "button[10," .. y-0.3 .. ";1,0.5;edit_comment_" .. commenter .. ";Edit]" ..
+                                   "button[11," .. y-0.3 .. ";1,0.5;delete_comment_" .. commenter .. ";Delete]"
         end
-        y = y + 0.5
+        y = y + 0.8
     end
 
+    -- Additional buttons if the player has privileges or is the author
     if is_author or player_has_privilege then
         formspec = formspec .. "button[0.5,8;3,1;edit_proposal;Edit Proposal]" ..
                                "button[4,8;3,1;delete_proposal;Delete Proposal]"
     end
 
+    -- Add comment button only for non-authors
     if player_name ~= proposal.author then
-        formspec = formspec .. "button[0.5,9;3,1;add_comment;Add Comment]"
+        formspec = formspec .. "button[0.5,10;3,1;add_comment;Add Comment]"
     end
 
-    formspec = formspec .. "button[5.5,9;2,1;back;Back]"
+    formspec = formspec .. "button[9,10;3,1;back;Back]"
 
     minetest.show_formspec(player_name, "vote_changes:proposal_" .. proposal_index, formspec)
 end
+
 
 
 

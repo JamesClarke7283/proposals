@@ -111,8 +111,8 @@ local function show_proposal_details(player_name, proposal_index)
 
     -- Edit and Delete buttons for the player's own comment
     if has_commented then
-        formspec = formspec .. "button[9,9.5;3,1;edit_my_comment;Edit Comment]" ..
-                               "button[9,10.5;3,1;delete_my_comment;Delete Comment]"
+        formspec = formspec .. "button[9,9.5;3,1;edit_comment_" .. player_name .. ";Edit Comment]" ..
+                               "button[9,10.5;3,1;delete_comment_" .. player_name .. ";Delete Comment]"
     end
 
     -- Add Comment button only if the player has not commented and is not the author
